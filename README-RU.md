@@ -16,7 +16,7 @@
 |                      Поддержка pyrogram .session                       |       ✅        |
 
 
-## [Настройки](https://github.com/GravelFire/MajorBot/blob/main/.env-example/)
+## [Настройки](https://github.com/GravelFire/b_usersbot/blob/main/.env-example/)
 |        Настройки        |                                      Описание                                       |
 |:-----------------------:|:-----------------------------------------------------------------------------------:|
 |  **API_ID / API_HASH**  | Данные платформы, с которой будет запущена сессия Telegram (по умолчанию - android) |
@@ -41,10 +41,10 @@
 3. Запишите `API_ID` и `API_HASH` в файле `.env`, предоставленные после регистрации вашего приложения.
 
 ## Установка
-Вы можете скачать [**Репозиторий**](https://github.com/GravelFire/MajorBot) клонированием на вашу систему и установкой необходимых зависимостей:
+Вы можете скачать [**Репозиторий**](https://github.com/GravelFire/b_usersbot) клонированием на вашу систему и установкой необходимых зависимостей:
 ```shell
-git clone https://github.com/GravelFire/MajorBot.git
-cd MajorBot
+git clone https://github.com/GravelFire/b_usersbot.git
+cd b_usersbot
 ```
 
 Затем для автоматической установки введите:
@@ -71,9 +71,9 @@ python3 main.py
 
 Также для быстрого запуска вы можете использовать аргументы, например:
 ```shell
-~/MajorBot >>> python3 main.py --action (1/2)
+~/b_usersbot >>> python3 main.py --action (1/2)
 # Or
-~/MajorBot >>> python3 main.py -a (1/2)
+~/b_usersbot >>> python3 main.py -a (1/2)
 
 # 1 - Запускает кликер
 # 2 - Создает сессию
@@ -92,9 +92,9 @@ python main.py
 
 Также для быстрого запуска вы можете использовать аргументы, например:
 ```shell
-~/MajorBot >>> python main.py --action (1/2)
+~/b_usersbot >>> python main.py --action (1/2)
 # Или
-~/MajorBot >>> python main.py -a (1/2)
+~/b_usersbot >>> python main.py -a (1/2)
 
 # 1 - Запускает кликер
 # 2 - Создает сессию
