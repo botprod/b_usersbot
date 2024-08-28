@@ -5,6 +5,7 @@ from urllib.parse import unquote, quote
 import aiohttp
 from aiocfscrape import CloudflareScraper
 from aiohttp_proxy import ProxyConnector
+from datetime import timedelta
 from better_proxy import Proxy
 from pyrogram import Client
 from pyrogram.errors import Unauthorized, UserDeactivated, AuthKeyUnregistered, FloodWait
@@ -251,7 +252,18 @@ class Tapper:
                 http_client.headers["Authorization"] = "Bearer " + accessToken
                 user_data = await self.info(http_client=http_client)
                 user_info = user_data.get('response', {}).get('user', {})
-                logger.info(f"{self.session_name} | Points: <lc>{int(user_info.get('deathDate') - time())}</lc> seconds | Alive: <lc>{user_info.get('isAlive')}</lc>")
+                time_left = max(user_info.get('deathDate') - time(), 0)
+                time_left_formatted = str(timedelta(seconds=int(time_left))).replace(',', '')
+                time_left_formatted = str(timedelta(seconds=int(time_left)))
+                if ',' in time_left_formatted:
+                    days, time_ = time_left_formatted.split(',')
+                    days = days.split()[0] + 'd'
+                else:
+                    days = '0d'
+                    time_ = time_left_formatted
+                hours, minutes, seconds = time_.split(':')
+                formatted_time = f"{days[:-1]}d{hours}h {minutes}m {seconds}s"
+                logger.info(f"{self.session_name} | Points: <lc>{formatted_time}</lc> seconds | Alive: <lc>{user_info.get('isAlive')}</lc>")
                 tasks = await self.get_task(http_client=http_client)
                 for task in tasks.get('response', {}):
                     if not task.get('isCompleted') and task.get('type') not in ["INVITE_FRIENDS", "BOOST_TG"]:
