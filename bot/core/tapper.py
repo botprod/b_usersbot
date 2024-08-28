@@ -28,7 +28,6 @@ def error_handler(func: Callable):
             return await func(*args, **kwargs)
         except Exception as e:
             await asyncio.sleep(1)
-            logger.error(f"{args[0].session_name} | {func.__name__} error: {e}")
     return wrapper
 
 class Tapper:
@@ -119,10 +118,9 @@ class Tapper:
     @error_handler
     async def make_request(self, http_client, method, endpoint=None, url=None, **kwargs):
         full_url = url or f"https://api.billion.tg/api/v1{endpoint or ''}"
-        async with http_client.request(method, full_url, **kwargs) as response:
-            response.raise_for_status()
-            response_json = await response.json()
-            return response_json
+        response = await http_client.request(method, full_url, **kwargs)
+        response.raise_for_status()
+        return await response.json()
     
     @error_handler
     async def login(self, http_client, init_data):
@@ -229,46 +227,56 @@ class Tapper:
         init_data = await self.get_tg_web_data()
         
         while True:
-            login = await self.login(http_client=http_client, init_data=init_data)
-            if login and login.get('response', {}):
-                if login.get('response', {}).get('isNewUser', False):
-                    logger.info(f'{self.session_name} | 💎 <lc>User registered!</lc>')
-                accessToken = login.get('response', {}).get('accessToken')
-            else:
-                logger.info(f"{self.session_name} | 💎 <lc>Login failed</lc>")
-                await asyncio.sleep(300)
-                logger.info(f"{self.session_name} | Sleep <lc>300s</lc>")
+            try:
+                if http_client.closed:
+                    if proxy_conn:
+                        if not proxy_conn.closed:
+                            proxy_conn.close()
 
-            if accessToken is None:
-                logger.info(f"{self.session_name} | Access token not found")
-                continue
-            
-            logger.info(f"{self.session_name} | 💎 <lc>Login successful</lc>")
-            
-            http_client.headers["Authorization"] = "Bearer " + accessToken
-            user_data = await self.info(http_client=http_client)
-            user_info = user_data.get('response', {}).get('user', {})
-            logger.info(f"{self.session_name} | Points: <lc>{int(user_info.get('deathDate') - time())}</lc> seconds | Alive: <lc>{user_info.get('isAlive')}</lc>")
-            tasks = await self.get_task(http_client=http_client)
-            for task in tasks.get('response', {}):
-                if not task.get('isCompleted') and task.get('type') not in ["INVITE_FRIENDS", "BOOST_TG"]:
-                    logger.info(f"{self.session_name} | Performing task <lc>{task['taskName']}</lc>...")
-                    if task.get('type') == 'REGEX_STRING':
-                        result = await self.add_gem_last_name(http_client=http_client, task_id=task['uuid'])
+                    proxy_conn = ProxyConnector().from_url(self.proxy) if self.proxy else None
+                    http_client = aiohttp.ClientSession(headers=headers, connector=proxy_conn)
+                login = await self.login(http_client=http_client, init_data=init_data)
+                if login and login.get('response', {}):
+                    if login.get('response', {}).get('isNewUser', False):
+                        logger.info(f'{self.session_name} | 💎 <lc>User registered!</lc>')
+                    accessToken = login.get('response', {}).get('accessToken')
+                else:
+                    logger.info(f"{self.session_name} | 💎 <lc>Login failed</lc>")
+                    await asyncio.sleep(300)
+                    logger.info(f"{self.session_name} | Sleep <lc>300s</lc>")
+                    continue
+                
+                logger.info(f"{self.session_name} | 💎 <lc>Login successful</lc>")
+                
+                http_client.headers["Authorization"] = "Bearer " + accessToken
+                user_data = await self.info(http_client=http_client)
+                user_info = user_data.get('response', {}).get('user', {})
+                logger.info(f"{self.session_name} | Points: <lc>{int(user_info.get('deathDate') - time())}</lc> seconds | Alive: <lc>{user_info.get('isAlive')}</lc>")
+                tasks = await self.get_task(http_client=http_client)
+                for task in tasks.get('response', {}):
+                    if not task.get('isCompleted') and task.get('type') not in ["INVITE_FRIENDS", "BOOST_TG"]:
+                        logger.info(f"{self.session_name} | Performing task <lc>{task['taskName']}</lc>...")
+                        if task.get('type') == 'REGEX_STRING':
+                            result = await self.add_gem_last_name(http_client=http_client, task_id=task['uuid'])
+                            if result:
+                                logger.info(f"{self.session_name} | Task <lc>{task.get('taskName')}</lc> completed! | Reward: <lc>+{task.get('secondsAmount')}</lc>")
+                            continue
+                        
+                        
+                        if task.get('type') == 'SUBSCRIPTION_TG':
+                            logger.info(f"{self.session_name} | Performing TG subscription to <lc>{task['link']}</lc>")
+                            await self.join_and_mute_tg_channel(task['link'])
+                        
+                        result = await self.done_task(http_client=http_client, task_id=task['uuid'])
                         if result:
-                            logger.info(f"{self.session_name} | Task <lc>{task.get('taskName')}</lc> completed! | Reward: <lc>+{task.get('secondsAmount')}</lc>")
-                        continue
-                    
-                    
-                    if task.get('type') == 'SUBSCRIPTION_TG':
-                        logger.info(f"{self.session_name} | Performing TG subscription to <lc>{task['link']}</lc>")
-                        await self.join_and_mute_tg_channel(task['link'])
-                    
-                    result = await self.done_task(http_client=http_client, task_id=task['uuid'])
-                    if result:
-                        if result:
-                            logger.info(f"{self.session_name} | Task <lc>{task.get('taskName')}</lc> completed! | Reward: <lc>+{task.get('secondsAmount')}</lc>")
-                await asyncio.sleep(delay=5)
+                            if result:
+                                logger.info(f"{self.session_name} | Task <lc>{task.get('taskName')}</lc> completed! | Reward: <lc>+{task.get('secondsAmount')}</lc>")
+                    await asyncio.sleep(delay=5)
+            finally:
+                if http_client and not http_client.closed:
+                    await http_client.close()
+                    if proxy_conn and not proxy_conn.closed:
+                            proxy_conn.close()
             
             sleep_time = random.randint(settings.SLEEP_TIME[0], settings.SLEEP_TIME[1])
             logger.info(f"{self.session_name} | Sleep <lc>{sleep_time}s</lc>")
