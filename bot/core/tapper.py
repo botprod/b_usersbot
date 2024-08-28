@@ -263,7 +263,7 @@ class Tapper:
                     time_ = time_left_formatted
                 hours, minutes, seconds = time_.split(':')
                 formatted_time = f"{days[:-1]}d{hours}h {minutes}m {seconds}s"
-                logger.info(f"{self.session_name} | Points: <lc>{formatted_time}</lc> seconds | Alive: <lc>{user_info.get('isAlive')}</lc>")
+                logger.info(f"{self.session_name} | Left: <lc>{formatted_time}</lc> seconds | Alive: <lc>{user_info.get('isAlive')}</lc>")
                 tasks = await self.get_task(http_client=http_client)
                 for task in tasks.get('response', {}):
                     if not task.get('isCompleted') and task.get('type') not in ["INVITE_FRIENDS", "BOOST_TG"]:
