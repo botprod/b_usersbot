@@ -230,11 +230,14 @@ class Tapper:
         
         while True:
             login = await self.login(http_client=http_client, init_data=init_data)
-            login_data = login.get('response', {})
-            if login_data:
-                if login_data.get('isNewUser', False):
+            if login and login.get('response', {}):
+                if login.get('response', {}).get('isNewUser', False):
                     logger.info(f'{self.session_name} | 💎 <lc>User registered!</lc>')
-                accessToken = login_data.get('accessToken')
+                accessToken = login.get('response', {}).get('accessToken')
+            else:
+                logger.info(f"{self.session_name} | 💎 <lc>Login failed</lc>")
+                await asyncio.sleep(300)
+                logger.info(f"{self.session_name} | Sleep <lc>300s</lc>")
 
             if accessToken is None:
                 logger.info(f"{self.session_name} | Access token not found")
