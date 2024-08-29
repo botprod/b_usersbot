@@ -226,6 +226,12 @@ class Tapper:
             http_client.headers['User-Agent'] = generate_random_user_agent(device_type='android', browser_type='chrome')
 
         init_data = await self.get_tg_web_data()
+        if not init_data:
+            if not http_client.closed:
+                await http_client.close()
+            if proxy_conn:
+                if not proxy_conn.closed:
+                    proxy_conn.close()
         
         while True:
             try:
@@ -236,6 +242,8 @@ class Tapper:
 
                     proxy_conn = ProxyConnector().from_url(self.proxy) if self.proxy else None
                     http_client = aiohttp.ClientSession(headers=headers, connector=proxy_conn)
+                    if settings.FAKE_USERAGENT:            
+                        http_client.headers['User-Agent'] = generate_random_user_agent(device_type='android', browser_type='chrome')
                 login = await self.login(http_client=http_client, init_data=init_data)
                 if login and login.get('response', {}):
                     if login.get('response', {}).get('isNewUser', False):
@@ -284,11 +292,16 @@ class Tapper:
                             if result:
                                 logger.info(f"{self.session_name} | Task <lc>{task.get('taskName')}</lc> completed! | Reward: <lc>+{task.get('secondsAmount')}</lc>")
                     await asyncio.sleep(delay=5)
-            finally:
-                if http_client and not http_client.closed:
                     await http_client.close()
-                    if proxy_conn and not proxy_conn.closed:
+                    if proxy_conn:
+                        if not proxy_conn.closed:
                             proxy_conn.close()
+            except InvalidSession as error:
+                raise error
+
+            except Exception as error:
+                logger.error(f"{self.session_name} | Unknown error: {error}")
+                await asyncio.sleep(delay=3)
             
             sleep_time = random.randint(settings.SLEEP_TIME[0], settings.SLEEP_TIME[1])
             logger.info(f"{self.session_name} | Sleep <lc>{sleep_time}s</lc>")
