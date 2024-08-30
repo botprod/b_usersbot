@@ -224,14 +224,6 @@ class Tapper:
         
         if settings.FAKE_USERAGENT:            
             http_client.headers['User-Agent'] = generate_random_user_agent(device_type='android', browser_type='chrome')
-
-        init_data = await self.get_tg_web_data()
-        if not init_data:
-            if not http_client.closed:
-                await http_client.close()
-            if proxy_conn:
-                if not proxy_conn.closed:
-                    proxy_conn.close()
         
         while True:
             try:
@@ -244,17 +236,29 @@ class Tapper:
                     http_client = aiohttp.ClientSession(headers=headers, connector=proxy_conn)
                     if settings.FAKE_USERAGENT:            
                         http_client.headers['User-Agent'] = generate_random_user_agent(device_type='android', browser_type='chrome')
+                init_data = await self.get_tg_web_data()
+                if not init_data:
+                    if not http_client.closed:
+                        await http_client.close()
+                    if proxy_conn:
+                        if not proxy_conn.closed:
+                            proxy_conn.close()
+                    logger.info(f"{self.session_name} | 💎 <lc>Login failed</lc>")     
+                    await asyncio.sleep(300)
+                    logger.info(f"{self.session_name} | Sleep <lc>300s</lc>")
+                    continue
                 login = await self.login(http_client=http_client, init_data=init_data)
-                if login and login.get('response', {}):
-                    if login.get('response', {}).get('isNewUser', False):
-                        logger.info(f'{self.session_name} | 💎 <lc>User registered!</lc>')
-                    accessToken = login.get('response', {}).get('accessToken')
-                else:
+                if not login:
                     logger.info(f"{self.session_name} | 💎 <lc>Login failed</lc>")
                     await asyncio.sleep(300)
                     logger.info(f"{self.session_name} | Sleep <lc>300s</lc>")
                     continue
-                
+                    
+                    
+                if login.get('response', {}).get('isNewUser', False):
+                    logger.info(f'{self.session_name} | 💎 <lc>User registered!</lc>')
+                    
+                accessToken = login.get('response', {}).get('accessToken')
                 logger.info(f"{self.session_name} | 💎 <lc>Login successful</lc>")
                 
                 http_client.headers["Authorization"] = "Bearer " + accessToken
