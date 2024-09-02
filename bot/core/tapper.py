@@ -29,7 +29,9 @@ def error_handler(func: Callable):
             return await func(*args, **kwargs)
         except Exception as e:
             await asyncio.sleep(1)
+
     return wrapper
+
 
 class Tapper:
     def __init__(self, tg_client: Client, proxy: str):
@@ -40,7 +42,7 @@ class Tapper:
         self.tg_client_id = 0
 
     async def get_tg_web_data(self) -> str:
-        
+
         if self.proxy:
             proxy = Proxy.from_str(self.proxy)
             proxy_dict = dict(
@@ -62,7 +64,7 @@ class Tapper:
 
                 except (Unauthorized, UserDeactivated, AuthKeyUnregistered):
                     raise InvalidSession(self.session_name)
-            
+
             while True:
                 try:
                     peer = await self.tg_client.resolve_peer('b_usersbot')
@@ -73,8 +75,8 @@ class Tapper:
                     logger.warning(f"{self.session_name} | FloodWait {fl}")
                     logger.info(f"{self.session_name} | Sleep {fls}s")
                     await asyncio.sleep(fls + 3)
-            
-            ref_id = random.choices([settings.REF_ID, "ref-boKr22ZTh5QatNJHMzqHhx"], weights=[75, 25], k=1)[0]
+
+            ref_id = settings.REF_ID
             web_view = await self.tg_client.invoke(RequestAppWebView(
                 peer=peer,
                 platform='android',
@@ -87,7 +89,7 @@ class Tapper:
             tg_web_data = unquote(
                 string=unquote(string=auth_url.split('tgWebAppData=')[1].split('&tgWebAppVersion')[0]))
             tg_web_data_parts = tg_web_data.split('&')
-            
+
             user_data = tg_web_data_parts[0].split('=')[1]
             chat_instance = tg_web_data_parts[1].split('=')[1]
             chat_type = tg_web_data_parts[2].split('=')[1]
@@ -102,7 +104,7 @@ class Tapper:
 
             me = await self.tg_client.get_me()
             self.tg_client_id = me.id
-            
+
             if self.tg_client.is_connected:
                 await self.tg_client.disconnect()
 
@@ -115,25 +117,23 @@ class Tapper:
             logger.error(f"{self.session_name} | Unknown error: {error}")
             await asyncio.sleep(delay=3)
 
-    
     @error_handler
     async def make_request(self, http_client, method, endpoint=None, url=None, **kwargs):
         full_url = url or f"https://api.billion.tg/api/v1{endpoint or ''}"
         response = await http_client.request(method, full_url, **kwargs)
         response.raise_for_status()
         return await response.json()
-    
+
     @error_handler
     async def login(self, http_client, init_data):
         http_client.headers["Tg-Auth"] = init_data
         user = await self.make_request(http_client, 'GET', endpoint="/auth/login")
         return user
-    
+
     @error_handler
     async def info(self, http_client):
         return await self.make_request(http_client, 'GET', endpoint="/users/me")
-    
-    
+
     async def join_and_mute_tg_channel(self, link: str):
         link = link if 'https://t.me/+' in link else link.replace('https://t.me/', "")
         if not self.tg_client.is_connected:
@@ -152,7 +152,7 @@ class Tapper:
                     await asyncio.sleep(delay=3)
                     response = await self.tg_client.join_chat(link)
                     logger.info(f"{self.session_name} | Joined to channel: <lc>{response.username}</lc>")
-                    
+
                     try:
                         peer = await self.tg_client.resolve_peer(chat_id)
                         await self.tg_client.invoke(account.UpdateNotifySettings(
@@ -161,18 +161,19 @@ class Tapper:
                         ))
                         logger.info(f"{self.session_name} | Successfully muted chat <lc>{chat_username}</lc>")
                     except Exception as e:
-                        logger.info(f"{self.session_name} | (Task) Failed to mute chat <lc>{chat_username}</lc>: {str(e)}")
-                    
-                    
+                        logger.info(
+                            f"{self.session_name} | (Task) Failed to mute chat <lc>{chat_username}</lc>: {str(e)}")
+
+
                 else:
-                    logger.error(f"{self.session_name} | (Task) Error while checking TG group: <lc>{chat_username}</lc>")
+                    logger.error(
+                        f"{self.session_name} | (Task) Error while checking TG group: <lc>{chat_username}</lc>")
 
             if self.tg_client.is_connected:
                 await self.tg_client.disconnect()
         except Exception as error:
             logger.error(f"{self.session_name} | (Task) Error while join tg channel: {error}")
-            
-    
+
     @error_handler
     async def add_gem_last_name(self, http_client: aiohttp.ClientSession, task_id: str):
         if not self.tg_client.is_connected:
@@ -188,43 +189,39 @@ class Tapper:
         await asyncio.sleep(5)
         await self.tg_client.update_profile(first_name=me.first_name)
         if self.tg_client.is_connected:
-                await self.tg_client.disconnect()
-        
+            await self.tg_client.disconnect()
+
         return result
-    
+
     @error_handler
     async def get_task(self, http_client: aiohttp.ClientSession) -> dict:
         return await self.make_request(http_client, 'GET', endpoint="/tasks")
-    
-    
+
     @error_handler
     async def done_task(self, http_client: aiohttp.ClientSession, task_id: str):
-        return await self.make_request(http_client, 'POST', endpoint= "/tasks", json={'uuid': task_id})
-        
-        
+        return await self.make_request(http_client, 'POST', endpoint="/tasks", json={'uuid': task_id})
+
     @error_handler
     async def check_proxy(self, http_client: aiohttp.ClientSession) -> None:
-        response = await self.make_request(http_client, 'GET', url='https://httpbin.org/ip', timeout=aiohttp.ClientTimeout(5))
+        response = await self.make_request(http_client, 'GET', url='https://httpbin.org/ip',
+                                           timeout=aiohttp.ClientTimeout(5))
         ip = response.get('origin')
         logger.info(f"{self.session_name} | Proxy IP: <lc>{ip}</lc>")
-        
-        
-    
+
     async def run(self) -> None:
         if settings.USE_RANDOM_DELAY_IN_RUN:
-                random_delay = random.randint(settings.RANDOM_DELAY_IN_RUN[0], settings.RANDOM_DELAY_IN_RUN[1])
-                logger.info(f"{self.session_name} | Bot will start in <lc>{random_delay}s</lc>")
-                await asyncio.sleep(random_delay)
-        
-        
+            random_delay = random.randint(settings.RANDOM_DELAY_IN_RUN[0], settings.RANDOM_DELAY_IN_RUN[1])
+            logger.info(f"{self.session_name} | Bot will start in <lc>{random_delay}s</lc>")
+            await asyncio.sleep(random_delay)
+
         proxy_conn = ProxyConnector().from_url(self.proxy) if self.proxy else None
         http_client = CloudflareScraper(headers=headers, connector=proxy_conn)
         if self.proxy:
             await self.check_proxy(http_client=http_client)
-        
-        if settings.FAKE_USERAGENT:            
+
+        if settings.FAKE_USERAGENT:
             http_client.headers['User-Agent'] = generate_random_user_agent(device_type='android', browser_type='chrome')
-        
+
         while True:
             try:
                 if http_client.closed:
@@ -234,8 +231,9 @@ class Tapper:
 
                     proxy_conn = ProxyConnector().from_url(self.proxy) if self.proxy else None
                     http_client = aiohttp.ClientSession(headers=headers, connector=proxy_conn)
-                    if settings.FAKE_USERAGENT:            
-                        http_client.headers['User-Agent'] = generate_random_user_agent(device_type='android', browser_type='chrome')
+                    if settings.FAKE_USERAGENT:
+                        http_client.headers['User-Agent'] = generate_random_user_agent(device_type='android',
+                                                                                       browser_type='chrome')
                 init_data = await self.get_tg_web_data()
                 if not init_data:
                     if not http_client.closed:
@@ -243,7 +241,7 @@ class Tapper:
                     if proxy_conn:
                         if not proxy_conn.closed:
                             proxy_conn.close()
-                    logger.info(f"{self.session_name} | 💎 <lc>Login failed</lc>")     
+                    logger.info(f"{self.session_name} | 💎 <lc>Login failed</lc>")
                     await asyncio.sleep(300)
                     logger.info(f"{self.session_name} | Sleep <lc>300s</lc>")
                     continue
@@ -253,14 +251,13 @@ class Tapper:
                     await asyncio.sleep(300)
                     logger.info(f"{self.session_name} | Sleep <lc>300s</lc>")
                     continue
-                    
-                    
+
                 if login.get('response', {}).get('isNewUser', False):
                     logger.info(f'{self.session_name} | 💎 <lc>User registered!</lc>')
-                    
+
                 accessToken = login.get('response', {}).get('accessToken')
                 logger.info(f"{self.session_name} | 💎 <lc>Login successful</lc>")
-                
+
                 http_client.headers["Authorization"] = "Bearer " + accessToken
                 user_data = await self.info(http_client=http_client)
                 user_info = user_data.get('response', {}).get('user', {})
@@ -275,7 +272,8 @@ class Tapper:
                     time_ = time_left_formatted
                 hours, minutes, seconds = time_.split(':')
                 formatted_time = f"{days[:-1]}d{hours}h {minutes}m {seconds}s"
-                logger.info(f"{self.session_name} | Left: <lc>{formatted_time}</lc> seconds | Alive: <lc>{user_info.get('isAlive')}</lc>")
+                logger.info(
+                    f"{self.session_name} | Left: <lc>{formatted_time}</lc> seconds | Alive: <lc>{user_info.get('isAlive')}</lc>")
                 tasks = await self.get_task(http_client=http_client)
                 for task in tasks.get('response', {}):
                     if not task.get('isCompleted') and task.get('type') not in ["INVITE_FRIENDS", "BOOST_TG"]:
@@ -283,18 +281,19 @@ class Tapper:
                         if task.get('type') == 'REGEX_STRING':
                             result = await self.add_gem_last_name(http_client=http_client, task_id=task['uuid'])
                             if result:
-                                logger.info(f"{self.session_name} | Task <lc>{task.get('taskName')}</lc> completed! | Reward: <lc>+{task.get('secondsAmount')}</lc>")
+                                logger.info(
+                                    f"{self.session_name} | Task <lc>{task.get('taskName')}</lc> completed! | Reward: <lc>+{task.get('secondsAmount')}</lc>")
                             continue
-                        
-                        
+
                         if task.get('type') == 'SUBSCRIPTION_TG':
                             logger.info(f"{self.session_name} | Performing TG subscription to <lc>{task['link']}</lc>")
                             await self.join_and_mute_tg_channel(task['link'])
-                        
+
                         result = await self.done_task(http_client=http_client, task_id=task['uuid'])
                         if result:
                             if result:
-                                logger.info(f"{self.session_name} | Task <lc>{task.get('taskName')}</lc> completed! | Reward: <lc>+{task.get('secondsAmount')}</lc>")
+                                logger.info(
+                                    f"{self.session_name} | Task <lc>{task.get('taskName')}</lc> completed! | Reward: <lc>+{task.get('secondsAmount')}</lc>")
                     await asyncio.sleep(delay=5)
                     await http_client.close()
                     if proxy_conn:
@@ -306,14 +305,11 @@ class Tapper:
             except Exception as error:
                 logger.error(f"{self.session_name} | Unknown error: {error}")
                 await asyncio.sleep(delay=3)
-            
+
             sleep_time = random.randint(settings.SLEEP_TIME[0], settings.SLEEP_TIME[1])
             logger.info(f"{self.session_name} | Sleep <lc>{sleep_time}s</lc>")
             await asyncio.sleep(delay=sleep_time)
-            
-            
-            
-            
+
 
 async def run_tapper(tg_client: Client, proxy: str | None):
     try:
